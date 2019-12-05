@@ -19,13 +19,15 @@ RUN apt-get update && \
         python3 \
         zlib1g-dev \
         ca-certificates \
+        gfortran \
         patch \
+        ffmpeg \
 	vim && \
     rm -rf /var/lib/apt/lists/*
 
 RUN ln -s /usr/bin/python2.7 /usr/bin/python 
 
-RUN git clone https://github.com/kaldi-asr/kaldi.git /opt/kaldi && \
+RUN git clone --depth 1 https://github.com/kaldi-asr/kaldi.git /opt/kaldi && \
     cd /opt/kaldi && \
     cd /opt/kaldi/tools && \
     ./extras/install_mkl.sh && \

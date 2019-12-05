@@ -5,7 +5,6 @@
 # Apache 2.0
 # script to generate reverberated data
 
-# we're using python 3.x style print but want it to work in python 2.x,
 import argparse, shlex, glob, math, os, random, sys, warnings, copy, imp, ast
 
 data_lib = imp.load_source('dml', 'steps/data/data_dir_manipulation_lib.py')
@@ -300,7 +299,7 @@ def generate_reverberation_opts(room_dict,  # the room dictionary, please refer 
 def get_new_id(id, prefix=None, copy=0):
     """ This function generates a new id from the input id
         This is needed when we have to create multiple copies of the original data
-        E.g. get_new_id("swb0035", prefix="rvb", copy=1) returns a string "rvb1_swb0035"
+        E.g. get_new_id("swb0035", prefix="rvb", copy=1) returns a string "rvb1-swb0035"
     """
     if prefix is not None:
         new_id = prefix + str(copy) + "-" + id
@@ -378,7 +377,7 @@ def add_prefix_to_fields(input_file, output_file, num_replicas, include_original
     """ This function replicate the entries in files like segments, utt2spk, text
     """
     list = [x.strip() for x in open(input_file, encoding='utf-8')]
-    f = open(output_file, "w" ,encoding='utf-8')
+    f = open(output_file, "w", encoding='utf-8')
     if include_original:
         start_index = 0
     else:
@@ -446,6 +445,8 @@ def create_reverberated_copy(input_dir,
         add_prefix_to_fields(input_dir + "/segments", output_dir + "/segments", num_replicas, include_original, prefix, field = [0,1])
     if os.path.isfile(input_dir + "/reco2file_and_channel"):
         add_prefix_to_fields(input_dir + "/reco2file_and_channel", output_dir + "/reco2file_and_channel", num_replicas, include_original, prefix, field = [0,1])
+    if os.path.isfile(input_dir + "/vad.scp"):
+        add_prefix_to_fields(input_dir + "/vad.scp", output_dir + "/vad.scp", num_replicas, include_original, prefix, field=[0])
 
     data_lib.RunKaldiCommand("utils/validate_data_dir.sh --no-feats --no-text {output_dir}"
                     .format(output_dir = output_dir))
@@ -467,7 +468,7 @@ def smooth_probability_distribution(set_list, smoothing_weight=0.0, target_sum=1
       uniform_probability = 0
       if num_unspecified > 0 and accumulated_prob < 1:
           uniform_probability = (1 - accumulated_prob) / float(num_unspecified)
-      elif num_unspecified > 0 and accumulate_prob >= 1:
+      elif num_unspecified > 0 and accumulated_prob >= 1:
           warnings.warn("The sum of probabilities specified by user is larger than or equal to 1. "
                         "The items without probabilities specified will be given zero to their probabilities.")
 
@@ -676,4 +677,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
