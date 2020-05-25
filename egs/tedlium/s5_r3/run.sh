@@ -183,6 +183,7 @@ if [ $stage -le 16 ]; then
   local/run_cleanup_segmentation.sh
 fi
 
+exit 0
 if [ $stage -le 17 ]; then
   # This will only work if you have GPUs on your system (and note that it requires
   # you to have the queue set up the right way... see kaldi-asr.org/doc/queue.html)

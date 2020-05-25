@@ -20,7 +20,8 @@
 . ./cmd.sh
 . ./path.sh
 
-data=/home/asr-corpus/public/aishell
+#data=/home/asr-corpus/public/aishell
+data=/mnt/PublicData/lahiru/aishell/data
 data_url=www.openslr.org/resources/33
 
 nj=30

@@ -5,16 +5,16 @@
 
 set -e
 
-stage=21
+stage=1
 
-nj=10
+nj=20
 
-train_set=train
-gmm=tri3
-nnet3_affix=_pybind
-tree_affix= 
-tdnn_affix=
-train_affix=
+#train_set=train
+#gmm=tri3
+#nnet3_affix=_pybind
+#tree_affix= 
+#tdnn_affix=
+#train_affix=
 online_cmvn=true
 train_ivector=false
 num_epochs=6
@@ -28,104 +28,22 @@ lang=default
 
 . parse_options.sh
 
-if [[ $stage -le 0 ]]; then
-  echo "$0: preparing directory for low-resolution speed-perturbed data (for alignment)"
-  utils/data/perturb_data_dir_speed_3way.sh data/$train_set data/${train_set}_sp
+ali_dir=exp/chain/nnet3_ali
+lat_dir=exp/chain/nnet3_ali
+lang_dir=data/lang_chain_e2e_char
+tree_dir=exp/chain/e2e_realign_char_tree_tied1a
+train_data_dir=data/train_spe2e_hires
+dir=exp/chain_pybind/tdnn_sp
 
-  for x in ${train_set}_sp dev test; do
-    utils/copy_data_dir.sh data/$x data/${x}_hires
-  done
-fi
+#echo $train_ivector_dir
 
-if [[ $stage -le 1 ]]; then
-  echo "$0: making MFCC features for low-resolution speed-perturbed data"
-  steps/make_mfcc.sh --nj $nj \
-    --cmd "$train_cmd" data/${train_set}_sp
-  steps/compute_cmvn_stats.sh data/${train_set}_sp
-  echo "fixing input data-dir to remove nonexistent features, in case some "
-  echo ".. speed-perturbed segments were too short."
-  utils/fix_data_dir.sh data/${train_set}_sp
-fi
+#tree_dir=exp/chain${nnet3_affix}/tree_bi${tree_affix}
+#lat_dir=exp/chain${nnet3_affix}/${gmm}_${train_set}_sp_lats
+#dir=exp/chain${nnet3_affix}/tdnn${tdnn_affix}_sp
+#train_data_dir=data/${train_set}_sp_hires
+#lores_train_data_dir=data/${train_set}_sp
 
-gmm_dir=exp/$gmm
-ali_dir=exp/${gmm}_ali_${train_set}_sp
-
-if [[ $stage -le 2 ]]; then
-  echo "$0: aligning with the perturbed low-resolution data"
-  steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
-    data/${train_set}_sp data/lang $gmm_dir $ali_dir
-fi
-
-if [[ $stage -le 3 ]]; then
-  echo "$0: creating high-resolution MFCC features"
-
-  # do volume-perturbation on the training data prior to extracting hires
-  # features; this helps make trained nnets more invariant to test data volume.
-  utils/data/perturb_data_dir_volume.sh data/${train_set}_sp_hires
-
-  for x in ${train_set}_sp dev test; do
-    steps/make_mfcc.sh --nj $nj --mfcc-config conf/mfcc_hires.conf \
-      --cmd "$train_cmd" data/${x}_hires
-    steps/compute_cmvn_stats.sh data/${x}_hires
-    utils/fix_data_dir.sh data/${x}_hires
-  done
-fi
-
-train_ivector_dir=
-if $train_ivector; then
-  local/run_ivector_common.sh --stage $stage \
-                              --nj $nj \
-                              --train-set $train_set \
-                              --online-cmvn-iextractor $online_cmvn \
-                              --nnet3-affix "$nnet3_affix"
-  train_ivector_dir=exp/nnet3${nnet3_affix}/ivectors_${train_set}_sp_hires
-fi
-echo $train_ivector_dir
-
-tree_dir=exp/chain${nnet3_affix}/tree_bi${tree_affix}
-lat_dir=exp/chain${nnet3_affix}/${gmm}_${train_set}_sp_lats
-dir=exp/chain${nnet3_affix}/tdnn${tdnn_affix}_sp
-train_data_dir=data/${train_set}_sp_hires
-lores_train_data_dir=data/${train_set}_sp
-
-if [[ $stage -le 9 ]]; then
-  for f in $gmm_dir/final.mdl $train_data_dir/feats.scp \
-      $lores_train_data_dir/feats.scp $ali_dir/ali.1.gz $gmm_dir/final.mdl; do
-    [ ! -f $f ] && echo "$0: expected file $f to exist" && exit 1
-  done
-fi
-
-if [[ $stage -le 10 ]]; then
-  echo "$0: creating lang directory with one state per phone."
-  # Create a version of the lang/ directory that has one state per phone in the
-  # topo file. [note, it really has two states.. the first one is only repeated
-  # once, the second one has zero or more repeats.]
-  cp -r data/lang data/lang_chain
-  silphonelist=$(cat data/lang_chain/phones/silence.csl) || exit 1;
-  nonsilphonelist=$(cat data/lang_chain/phones/nonsilence.csl) || exit 1;
-  # Use our special topology... note that later on may have to tune this
-  # topology.
-  steps/nnet3/chain/gen_topo.py $nonsilphonelist $silphonelist >data/lang_chain/topo
-fi
-
-if [[ $stage -le 11 ]]; then
-  # Get the alignments as lattices (gives the chain training more freedom).
-  # use the same num-jobs as the alignments
-  steps/align_fmllr_lats.sh --nj $nj --cmd "$train_cmd" ${lores_train_data_dir} \
-    data/lang $gmm_dir $lat_dir
-  rm $lat_dir/fsts.*.gz # save space
-fi
-
-if [[ $stage -le 12 ]]; then
-  # Build a tree using our new topology.  We know we have alignments for the
-  # speed-perturbed data (local/nnet3/run_ivector_common.sh made them), so use
-  # those.
-  steps/nnet3/chain/build_tree.sh --frame-subsampling-factor 3 \
-      --context-opts "--context-width=2 --central-position=1" \
-      --cmd "$train_cmd" 4000 ${lores_train_data_dir} data/lang_chain $ali_dir $tree_dir
-fi
-
-if  [[ $stage -le 13 ]]; then
+if  [[ $stage -le 0 ]]; then
   echo "$0: Making Phone LM and denominator and normalization FST"
   mkdir -p $dir/den_fsts/log
 
@@ -144,6 +62,7 @@ if  [[ $stage -le 13 ]]; then
      chain-make-den-fst $dir/${lang}.tree $dir/init/${lang}_trans.mdl $dir/den_fsts/${lang}.phone_lm.fst \
      $dir/den_fsts/${lang}.den.fst $dir/den_fsts/${lang}.normalization.fst || exit 1;
 fi
+
 
 # You should know how to calculate your model's left/right context **manually**
 model_left_context=28
@@ -165,13 +84,12 @@ log_level=info # valid values: debug, info, warning
 # true to save network output as kaldi::CompressedMatrix
 # false to save it as kaldi::Matrix<float>
 save_nn_output_as_compressed=false
-if [ $stage -le 14 ]; then
+if [ $stage -le 1 ]; then
   echo "$0: about to dump raw egs."
   # Dump raw egs.
   steps/chain2/get_raw_egs.sh --cmd "$train_cmd" \
     --lang "${lang}" \
     --online-cmvn $online_cmvn \
-    --online-ivector-dir "$train_ivector_dir" \
     --left-context $egs_left_context \
     --right-context $egs_right_context \
     --frame-subsampling-factor $frame_subsampling_factor \
@@ -181,7 +99,8 @@ if [ $stage -le 14 ]; then
     ${train_data_dir} ${dir} ${lat_dir} ${dir}/raw_egs
 fi
 
-if [ $stage -le 15 ]; then
+
+if [ $stage -le 2 ]; then
   echo "$0: about to process egs"
   steps/chain2/process_egs.sh  --cmd "$train_cmd" \
       --num-repeats 1 \
@@ -189,7 +108,7 @@ if [ $stage -le 15 ]; then
 fi
 
 num_workers=4
-if [ $stage -le 16 ]; then
+if [ $stage -le 3 ]; then
   echo "$0: about to randomize egs"
   steps/chain2/randomize_egs.sh --frames-per-job 3000000 --num-workers $num_workers \
     ${dir}/processed_egs ${dir}/egs
@@ -206,7 +125,7 @@ fi
 echo "ivector_dim: $ivector_dim", "ivector_period, $ivector_period"
 
 merged_egs_dir=merged_egs_chain2
-if [[ $stage -le 19 ]]; then
+if [[ $stage -le 4 ]]; then
   echo "$0: merging egs"
 
   mkdir -p $dir/$merged_egs_dir
@@ -225,7 +144,7 @@ training_eg_dir=egs_chain2_for_training
 # as we will load them with multiple workers in PyTorch and there is an
 # assumption in DDP training that num-mininbatches should be equal
 # across workers.
-if [[ $stage -le 20 ]]; then
+if [[ $stage -le 5 ]]; then
   echo "$0: align eg numbers in each scp file"
 
   mkdir -p $dir/$training_eg_dir/tmp_scp_dir
@@ -251,8 +170,8 @@ fi
 export LD_PRELOAD=/opt/intel/mkl/lib/intel64/libmkl_core.so:/opt/intel/mkl/lib/intel64/libmkl_sequential.so
 
 output_dim=$(grep 'num_leaves' $info_file | awk '{print $NF}')
-train_dir=train${train_affix}
-if [[ $stage -le 21 ]]; then
+train_dir=train
+if [[ $stage -le 6 ]]; then
   echo "$0: training..."
 
   mkdir -p $dir/$train_dir/tensorboard
@@ -319,7 +238,7 @@ if [[ $stage -le 21 ]]; then
         --train.xent-regularize 0.1 || exit 1;
 fi
 
-if [[ $stage -le 22 ]]; then
+if [[ $stage -le 7 ]]; then
   echo "inference: computing likelihood"
   for x in test dev; do
     mkdir -p $dir/$train_dir/inference/$x
@@ -364,7 +283,7 @@ if [[ $stage -le 22 ]]; then
   done
 fi
 
-if [[ $stage -le 23 ]]; then
+if [[ $stage -le 8 ]]; then
   # Note: it might appear that this $lang directory is mismatched, and it is as
   # far as the 'topo' is concerned, but this script doesn't read the 'topo' from
   # the lang directory.
@@ -374,7 +293,7 @@ if [[ $stage -le 23 ]]; then
 fi
 
 
-if [[ $stage -le 24 ]]; then
+if [[ $stage -le 9 ]]; then
   echo "decoding"
   for x in test dev; do
     if [[ ! -f $dir/$train_dir/inference/$x/nnet_output.scp ]]; then
@@ -393,7 +312,7 @@ if [[ $stage -le 24 ]]; then
   done
 fi
 
-if [[ $stage -le 25 ]]; then
+if [[ $stage -le 10 ]]; then
   echo "scoring"
 
   for x in test dev; do

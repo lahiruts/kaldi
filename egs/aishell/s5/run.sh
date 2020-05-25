@@ -12,30 +12,31 @@
 # Caution: some of the graph creation steps use quite a bit of memory, so you
 # should run this on a machine that has sufficient memory.
 
-data=/export/a05/xna/data
+#data=/export/a05/xna/data
+data=/mnt/PublicData/lahiru/aishell/data
 data_url=www.openslr.org/resources/33
 
 . ./cmd.sh
 
-local/download_and_untar.sh $data $data_url data_aishell || exit 1;
-local/download_and_untar.sh $data $data_url resource_aishell || exit 1;
+#local/download_and_untar.sh $data $data_url data_aishell || exit 1;
+#local/download_and_untar.sh $data $data_url resource_aishell || exit 1;
 
 # Lexicon Preparation,
-local/aishell_prepare_dict.sh $data/resource_aishell || exit 1;
+#local/aishell_prepare_dict.sh $data/resource_aishell || exit 1;
 
 # Data Preparation,
-local/aishell_data_prep.sh $data/data_aishell/wav $data/data_aishell/transcript || exit 1;
+#local/aishell_data_prep.sh $data/data_aishell/wav $data/data_aishell/transcript || exit 1;
 
 # Phone Sets, questions, L compilation
-utils/prepare_lang.sh --position-dependent-phones false data/local/dict \
-    "<SPOKEN_NOISE>" data/local/lang data/lang || exit 1;
+#utils/prepare_lang.sh --position-dependent-phones false data/local/dict \
+#    "<SPOKEN_NOISE>" data/local/lang data/lang || exit 1;
 
 # LM training
-local/aishell_train_lms.sh || exit 1;
+#local/aishell_train_lms.sh || exit 1;
 
 # G compilation, check LG composition
-utils/format_lm.sh data/lang data/local/lm/3gram-mincount/lm_unpruned.gz \
-    data/local/dict/lexicon.txt data/lang_test || exit 1;
+#utils/format_lm.sh data/lang data/local/lm/3gram-mincount/lm_unpruned.gz \
+#    data/local/dict/lexicon.txt data/lang_test || exit 1;
 
 # Now make MFCC plus pitch features.
 # mfccdir should be some place with a largish disk where you
@@ -134,10 +135,10 @@ steps/align_fmllr.sh --cmd "$train_cmd" --nj 10 \
   data/train data/lang exp/tri5a exp/tri5a_ali || exit 1;
 
 # nnet3
-local/nnet3/run_tdnn.sh
+#local/nnet3/run_tdnn.sh
 
 # chain
-local/chain/run_tdnn.sh
+#local/chain/run_tdnn.sh
 
 # getting results (see RESULTS file)
 for x in exp/*/decode_test; do [ -d $x ] && grep WER $x/cer_* | utils/best_wer.sh; done 2>/dev/null
