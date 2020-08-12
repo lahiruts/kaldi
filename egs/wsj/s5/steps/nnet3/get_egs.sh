@@ -224,8 +224,11 @@ fi
 # of open filehandles that the system allows per process (ulimit -n).
 # This sometimes gives a misleading answer as GridEngine sometimes changes that
 # somehow, so we limit it to 512.
+
+# We limit the max_open_filehandeles to 128
+
 max_open_filehandles=$(ulimit -n) || exit 1
-[ $max_open_filehandles -gt 512 ] && max_open_filehandles=512
+[ $max_open_filehandles -gt 128 ] && max_open_filehandles=128
 num_archives_intermediate=$num_archives
 archives_multiple=1
 while [ $[$num_archives_intermediate+4] -gt $max_open_filehandles ]; do
@@ -235,6 +238,8 @@ done
 # now make sure num_archives is an exact multiple of archives_multiple.
 num_archives=$[$archives_multiple*$num_archives_intermediate]
 
+echo $archives_multiple > $dir/info/archives_multiple
+echo $num_archives_intermediate > $dir/info/num_archives_intermediate
 echo $num_archives >$dir/info/num_archives
 echo $frames_per_eg >$dir/info/frames_per_eg
 # Work out the number of egs per archive

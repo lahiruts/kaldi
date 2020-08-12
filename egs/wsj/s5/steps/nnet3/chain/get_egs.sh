@@ -57,7 +57,7 @@ stage=0
 max_jobs_run=15         # This should be set to the maximum number of nnet3-chain-get-egs jobs you are
                         # comfortable to run in parallel; you can increase it if your disk
                         # speed is greater and you have more machines.
-max_shuffle_jobs_run=50  # the shuffle jobs now include the nnet3-chain-normalize-egs command,
+max_shuffle_jobs_run=10  # the shuffle jobs now include the nnet3-chain-normalize-egs command,
                          # which is fairly CPU intensive, so we can run quite a few at once
                          # without overloading the disks.
 srand=0     # rand seed for nnet3-chain-get-egs, nnet3-chain-copy-egs and nnet3-chain-shuffle-egs
@@ -265,8 +265,11 @@ num_archives=$[$num_frames/$frames_per_iter+1]
 # of open filehandles that the system allows per process (ulimit -n).
 # This sometimes gives a misleading answer as GridEngine sometimes changes the
 # limit, so we limit it to 512.
+
+# We limit the max_open_filehandeles to 128
+
 max_open_filehandles=$(ulimit -n) || exit 1
-[ $max_open_filehandles -gt 512 ] && max_open_filehandles=512
+[ $max_open_filehandles -gt 128 ] && max_open_filehandles=128
 num_archives_intermediate=$num_archives
 archives_multiple=1
 while [ $[$num_archives_intermediate+4] -gt $max_open_filehandles ]; do
@@ -276,6 +279,8 @@ done
 # now make sure num_archives is an exact multiple of archives_multiple.
 num_archives=$[$archives_multiple*$num_archives_intermediate] || exit 1;
 
+echo $archives_multiple > $dir/info/archives_multiple
+echo $num_archives_intermediate > $dir/info/num_archives_intermediate
 echo $num_archives >$dir/info/num_archives
 echo $frames_per_eg >$dir/info/frames_per_eg
 # Work out the number of egs per archive
